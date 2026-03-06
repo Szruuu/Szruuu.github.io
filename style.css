@@ -1,0 +1,138 @@
+:root {
+    --bg-color: #000000;
+    --text-color: #ffffff;
+    --accent-color: #00ffff; /* Cyan for the map reference */
+    --panel-bg: rgba(255, 255, 255, 0.05);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Space Mono', monospace; /* Monospace font for data look */
+    overflow-x: hidden;
+}
+
+/* Typography */
+h1 {
+    font-size: 2.5rem;
+    letter-spacing: -2px;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.subtitle {
+    font-size: 0.9rem;
+    color: #888;
+    margin-top: 10px;
+}
+
+h2 {
+    font-size: 1.2rem;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    color: var(--accent-color);
+}
+
+p {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: #ccc;
+}
+
+/* Layout */
+header {
+    padding: 4rem 2rem;
+    border-bottom: 1px solid #222;
+}
+
+section {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    min-height: 80vh;
+    border-bottom: 1px solid #222;
+}
+
+.text-panel {
+    padding: 3rem 2rem;
+    border-right: 1px solid #222;
+    display: flex;
+    flex-direction: column;
+}
+
+.viz-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: #050505;
+}
+
+/* Map Specifics */
+#map-container {
+    background: #000;
+}
+.legend-box {
+    margin-top: auto;
+    font-size: 0.7rem;
+}
+.gradient-bar {
+    height: 10px;
+    background: linear-gradient(to right, rgba(0,255,255,0.8), rgba(0,255,255,0.1));
+    margin: 5px 0;
+}
+
+/* Tooltip */
+.tooltip {
+    position: absolute;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #444;
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 1000;
+    max-width: 200px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    section {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 500px;
+    }
+    .text-panel {
+        border-right: none;
+        border-bottom: 1px solid #222;
+        padding: 2rem;
+    }
+}
+
+footer {
+    padding: 2rem;
+    text-align: center;
+    font-size: 0.7rem;
+    color: #555;
+}
+
+/* ... Keep previous styles ... */
+
+/* Add specific styling for the data key list */
+.data-key {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    font-size: 0.75rem;
+    color: #888;
+    border-top: 1px solid #333;
+    padding-top: 15px;
+}
+
+.data-key li {
+    margin-bottom: 8px;
+}
+
+.data-key strong {
+    color: var(--accent-color);
+}
