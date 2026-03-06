@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Bag Ethnography</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <h1>SHOPPING BAG ETHNOGRAPHY</h1>
+            <p class="subtitle">Visualizing the Material Culture of Consumption</p>
+        </div>
+    </header>
+
+    <main>
+        <!-- Section 1 -->
+        <section id="section-map">
+            <div class="text-panel">
+                <h2>01. THE DRIFTING PATH</h2>
+                <p>Spatiotemporal trajectory connected by the cost of time and money.</p>
+                <ul class="data-key">
+                    <li><strong>Path Color:</strong> Weather (Warm=Sunny, Cool=Rain/Cloudy)</li>
+                    <li><strong>Line Thickness:</strong> Time Cost (Thicker = Harder to get)</li>
+                    <li><strong>Node Halo:</strong> Monetary Cost (Larger Glow = More Expensive)</li>
+                    <li><strong>Inner Dot:</strong> Access Route (Solid=Offline, Hollow=Online)</li>
+                </ul>
+            </div>
+            <div id="map-container" class="viz-container"></div>
+        </section>
+
+        <!-- Section 2 -->
+        <section id="section-3d">
+            <div class="text-panel">
+                <h2>02. THE LIVING ARCHIVE</h2>
+                <p>A memory palace where the physical state of the bag dictates its virtual form.</p>
+                <ul class="data-key">
+                    <li><strong>Height:</strong> Colorfulness</li>
+                    <li><strong>Transparency:</strong> Newness (Faded = Old/Worn)</li>
+                    <li><strong>Animation:</strong> Monetary Cost (Floating = Expensive)</li>
+                    <li><strong>Surface:</strong> Cleanliness (Matte = Dirty, Shiny = Clean)</li>
+                    <li><strong>Wireframe:</strong> Online Route</li>
+                </ul>
+            </div>
+            <div id="three-container" class="viz-container"></div>
+        </section>
+
+        <!-- Section 3 -->
+        <section id="section-network">
+            <div class="text-panel">
+                <h2>03. THE BRAND GRAVITY</h2>
+                <p>Brand solar systems defined by motivation and visual impact.</p>
+                <ul class="data-key">
+                    <li><strong>Orbit:</strong> Brands (Centers of Gravity)</li>
+                    <li><strong>Shape:</strong> Motivation (Circle=Memorial, Diamond=Interest, etc.)</li>
+                    <li><strong>Link Thickness:</strong> Pattern Proportion (Visual Loudness)</li>
+                    <li><strong>Link Style:</strong> Solid=Clean, Dashed=Worn</li>
+                </ul>
+            </div>
+            <div id="d3-network-container" class="viz-container"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Data Source: Personal Collection Archives &middot; Visualization: D3.js / Three.js / Leaflet</p>
+    </footer>
+
+    <!-- Libraries -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script src="script.js"></script>
+</body>
+</html>
