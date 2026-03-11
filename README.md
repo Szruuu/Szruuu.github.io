@@ -1,1 +1,1 @@
-# Szruuu.github.io
+# SHOPPINGBAGETHNOGRAPH-Szruuu.github.io
