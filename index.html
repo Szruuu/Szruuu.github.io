@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Food with Faces</title>
+<script>try { var t = localStorage.getItem('fwf-theme'); if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t); } catch (e) {}</script>
+
+<!-- 字体:PT Mono,Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=PT+Mono&display=swap">
+
+<!-- 文件夹结构:
+       index.html
+       images/fwf-001.jpg   每个角色一张小图(册子右页),文件名和数据里的 img 一致
+       images/vis-001.png   自己做的视觉图(册子左页),编号对应角色编号
+     图还没放时,显示底色 + 缩写 / 空的位置,不会报错 -->
+
+<style>
+  /* ========= 颜色 =========
+     所有颜色都在这里,改颜色只改这一处。
+     文化历史(H)不用颜色了,改用符号;颜色只留给颜色分类(C) */
+  :root {
+    --paper: #ffffff;   /* 页面底色 */
+    --ink:   #0c0c0c;   /* 文字、粗线 */
+    --mute:  #6c6c68;   /* 次要文字 */
+    --hair:  #d9d9d5;   /* 细线 */
+    --wash:  #f1f1ee;   /* 空缩略图的灰底 */
+    --accent:#e5311d;   /* 键盘聚焦框 */
+    --font: "PT Mono", "Courier New", monospace;
+  }
+  /* 深色版本:右上角 Dark / Light 按钮手动切换(记住选择);没选过就跟随系统 */
+  :root[data-theme="dark"] { --paper:#0e0e0d; --ink:#f2f2ee; --mute:#9b9b95; --hair:#3a3a37; --wash:#1b1b19; --accent:#ff5a44; color-scheme: dark; }
+  :root[data-theme="light"] { color-scheme: light; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --paper:#0e0e0d; --ink:#f2f2ee; --mute:#9b9b95; --hair:#3a3a37; --wash:#1b1b19; --accent:#ff5a44; color-scheme: dark; }
+  }
+
+  /* ========= 基础 ========= */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0 16px 32px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.45;
+    font-synthesis: none;            /* 不要浏览器假粗体 */
+  }
+  h1, h2, h3, b, strong { font-weight: 400; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  /* ========= 顶部 =========
+     参考书的页眉:一行小字 + 黑线 + 导航 */
+  .top { position: sticky; top: 0; z-index: 10; background: var(--paper); padding-top: 14px; }
+  .strip {
+    display: flex; flex-wrap: wrap; gap: 4px 28px;
+    font-size: 12px; padding-bottom: 3px;
+    border-bottom: 1px solid var(--ink);
+  }
+  .strip .push { margin-left: auto; }
+  nav { display: flex; gap: 22px; padding: 6px 0; border-bottom: 1px solid var(--hair); }
+  nav a { text-decoration: none; color: var(--mute); text-transform: uppercase; font-size: 12px; }
+  nav a:hover { color: var(--ink); }
+  .theme { margin-left: auto; background: none; border: 0; padding: 0; font: inherit; font-size: 12px; text-transform: uppercase; color: var(--mute); cursor: pointer; }
+  .theme:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+  nav a[aria-current="page"] { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+
+  /* ========= 页面大标题(参考里的 OBJET #280) ========= */
+  .vh {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 56px;
+    margin: 14px 0; padding-bottom: 6px;
+    border-bottom: 1px solid var(--ink);
+    font-size: clamp(22px, 3.4vw, 34px);
+    letter-spacing: -0.02em;
+  }
+  /* INDEX 页最大的标题 */
+  body.home .sname { display: none; }   /* INDEX 页已经有大标题,顶部小字不重复 */
+  .hero { margin: 26px 0 4px; font-size: clamp(38px, 9.6vw, 90px); line-height: 1; letter-spacing: -0.05em; }
+  .vh .sub { font-size: 13px; color: var(--mute); letter-spacing: 0; text-transform: uppercase; }
+  .vh .r { margin-left: auto; }
+
+  /* ========= 筛选按钮 ========= */
+  .filters { display: grid; gap: 8px; margin-bottom: 18px; }
+  .frow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .fl { width: 80px; font-size: 11px; text-transform: uppercase; color: var(--mute); }
+  .chip {
+    font: inherit; font-size: 12px;
+    border: 1px solid var(--ink); background: transparent; color: var(--ink);
+    padding: 3px 9px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip:hover { background: var(--wash); }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+  .count { margin-left: auto; font-size: 12px; color: var(--mute); }
+
+  /* 符号(文化历史 H):用 currentColor,跟着文字色走,选中反白时也正常 */
+  .sy { display: inline-block; flex: none; vertical-align: -1px; }
+  /* 色块(颜色分类 C):加淡描边,白色和灰色才看得见 */
+  .chip.kc { padding: 4px 6px; border-color: transparent; }   /* 颜色按钮不画描边 */
+  .chip.kc:hover, .chip.kc[aria-pressed="true"] { background: var(--wash); color: var(--ink); }   /* 选中:浅灰底 + 显示英文名 */
+  .chip.kc .sw { width: 14px; height: 14px; }
+  .tagbtn { font: inherit; text-transform: inherit; letter-spacing: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  .rv { margin-left: 6px; }
+  .tagbtn:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .sw { width: 9px; height: 9px; display: inline-block; flex: none; box-shadow: inset 0 0 0 1px rgba(128,128,128,.4); }
+
+  /* ========= 索引网格:8 列、100 格 ========= */
+  .grid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 20px 14px; }
+  .cell { display: block; text-decoration: none; min-width: 0; transition: opacity .15s; }
+  .cell .no { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 4px; }
+  .cell .nm { font-size: 12px; line-height: 1.3; color: var(--mute); margin-top: 6px; white-space: normal; overflow-wrap: anywhere; }   /* 灰色,一行放不下就换行,完整显示 */
+  .cell.empty .no { color: var(--hair); }
+  .cell.empty .thumb { background: transparent; border: 1px dashed var(--hair); }   /* 没收集的格子:虚线框 */
+  .cell.dim { opacity: .14; }                                                        /* 筛选后不符合:变淡 */
+  a.cell:hover .thumb { outline: 2px solid var(--ink); }
+
+  /* 缩略图:底色是角色主色,缩写在上面,图片加载成功就盖住 */
+  .thumb { position: relative; aspect-ratio: 1/1; background: transparent; overflow: hidden; }   /* 没有图就空着,放了图自动盖上 */
+  .thumb img, .fig img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .bar, .pband { box-shadow: inset 0 0 0 1px rgba(128,128,128,.28); }   /* 白色也看得见 */
+  .bar { height: 4px; margin-top: 3px; }   /* 缩略图下面的颜色条,图片盖住底色后还能看到主色 */
+
+  /* 按颜色排列时,每组前面的标题行 */
+  .ghead {
+    grid-column: 1 / -1; display: flex; gap: 10px; align-items: center;
+    margin-top: 8px; padding-top: 3px; border-top: 1px solid var(--ink);
+    font-size: 12px; text-transform: uppercase;
+  }
+  .ghead span:last-child { margin-left: auto; color: var(--mute); }
+
+  /* ========= 单个角色页 =========
+     参考:摊开的册子。左页 = 视觉图,右页 = 小图 + 编号信息表,右边是索引标签 */
+  .bw { position: relative; max-width: 1060px; padding-right: 62px; }
+  .book { display: grid; grid-template-columns: 1fr 36px 1fr; }
+  .pg { position: relative; border: 1px solid var(--ink); min-height: 560px; display: flex; flex-direction: column; background: var(--paper); min-width: 0; }
+  .pg.l { background: var(--wash); padding: 14px; overflow: hidden; }
+  .spine { position: relative; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); background: var(--hair); }
+  /* 装订:一个黑色大回形针压在册子中间上方 */
+  .clip { position: absolute; top: -46px; left: 50%; width: 52px; height: 156px; margin-left: -26px; transform: rotate(6deg); color: var(--ink); z-index: 3; }
+
+  /* 左页:页眉 / 视觉图 / 页脚 */
+  .lt { display: flex; align-items: baseline; gap: 14px; }
+  .lt .bn { font-size: 40px; line-height: 1; letter-spacing: -0.03em; }
+  .lt .bs { font-size: 11px; color: var(--mute); }
+  .lt .bd { margin-left: auto; font-size: 11px; }
+  /* 左页的视觉图:铺满整个左页(贴边,不留白边)。想改回留白框,把 .vz 改回 position: relative; flex: 1; margin: 10px 0; min-height: 320px;,
+     把 .vz img 的 object-fit 改回 contain */
+  .vz { position: absolute; inset: 0; display: grid; place-items: center; }
+  .lt, .lb { position: relative; z-index: 1; }
+  .lb { margin-top: auto; }
+  /* 放了图以后,左页的编号和 Body 文字直接压在图上,黑字,不加暗影、不加底。想换颜色改下面的 color */
+  .pg.l:has(.vz img) .lt, .pg.l:has(.vz img) .lb,
+  .pg.l:has(.vz img) .lt *, .pg.l:has(.vz img) .lb * { color: #0c0c0c; text-shadow: none; }
+  .vz .cap { font-size: 10px; line-height: 1.6; text-align: center; color: var(--mute); text-transform: uppercase; letter-spacing: .06em; }
+  .vz img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: var(--wash); }   /* cover = 铺满左页,多出的部分裁掉;想完整显示不裁就改成 contain */
+  .lb { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+  .lb .k { display: block; font-size: 10px; text-transform: uppercase; color: var(--mute); }
+  .lb .v { font-size: 20px; line-height: 1.1; letter-spacing: -0.02em; }
+
+  /* 右页:名称行 / 信息表 + 小图 / 简介 + 条形码 */
+  .rh { display: grid; grid-template-columns: 30px auto 1fr; gap: 0 8px; align-items: baseline; padding: 7px 10px; border-bottom: 1px solid var(--ink); }
+  .rh .n { font-size: 10px; color: var(--mute); }
+  .rh .b { font-size: 13px; text-transform: uppercase; }
+  .rh .nm { text-align: right; font-size: clamp(15px, 1.9vw, 22px); line-height: 1.1; text-transform: uppercase; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+  .rb { display: grid; grid-template-columns: 1fr 38%; flex: 1; }
+  .rows { border-right: 1px solid var(--ink); min-width: 0; }
+  .rs { display: grid; grid-template-columns: 30px 1fr; gap: 0 8px; padding: 4px 10px; border-bottom: 1px solid var(--hair); font-size: 11.5px; text-transform: uppercase; }
+  .rs .i { font-size: 10px; color: var(--mute); }
+  .rs .k { color: var(--mute); margin-right: 6px; }
+  .rs .t { min-width: 0; overflow-wrap: anywhere; }
+  .rs .tag { white-space: normal; }   /* 信息表里的标签允许换行,不超出栏 */
+  .rs.h { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+  .rs.h .t { text-align: right; }
+  .side { display: flex; flex-direction: column; min-width: 0; }
+  .code { font-size: 9px; letter-spacing: .14em; padding: 7px 8px 5px; text-align: right; }
+  .pt { position: relative; margin: 0 8px; aspect-ratio: 3/4; background: transparent; overflow: hidden; }
+  .pt img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .pband { height: 12px; margin: 0 8px; }   /* 小图下面的主色条 */
+  .nt { padding: 8px 10px 10px; font-size: 11.5px; text-transform: uppercase; }
+  .nt p { margin: 0; }
+  .bc { display: block; width: 100%; height: 22px; margin-top: 10px; }
+
+  /* 右边的索引标签:上一个 / 下一个 / 回索引 / 年表 */
+  .tabs { position: absolute; right: 0; top: 16px; width: 62px; }
+  .tab { display: block; height: 34px; margin-bottom: 8px; padding-left: 9px; line-height: 32px; font-size: 10px; text-transform: uppercase; text-decoration: none; border: 1px solid var(--ink); border-left: 0; border-radius: 0 18px 18px 0; background: var(--paper); }
+  .tab:hover { background: var(--ink); color: var(--paper); }
+  .pno { position: absolute; right: 0; bottom: 0; writing-mode: vertical-rl; transform: rotate(180deg); font-size: clamp(30px, 5vw, 52px); line-height: 1; }
+
+  /* 页面下半:事件、来源 */
+  .sec { margin-top: 26px; max-width: 1060px; padding-right: 62px; }
+  .sec h2 { font-size: 12px; text-transform: uppercase; margin: 0 0 4px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 2px 0; }
+  .ev { display: grid; grid-template-columns: 52px 74px 1fr; gap: 4px 12px; padding: 7px 0; border-bottom: 1px solid var(--hair); font-size: 12.5px; }
+  .srcs { margin: 6px 0 0; padding: 0; list-style: none; font-size: 12px; }
+  .srcs li { padding: 3px 0; border-bottom: 1px solid var(--hair); }
+  .srcs .none { color: var(--mute); }
+  .sum { font-size: 12px; margin: 0; }
+  .tag { display: inline-flex; align-items: center; gap: 5px; margin: 0 8px 2px 0; white-space: nowrap; }
+
+  /* ========= 年表 =========
+     整页是一块大画布,朝任何方向都能拖(鼠标 / 手指 / 触控板 / 方向键) */
+  body.full { overflow: hidden; }
+  body.full .foot { display: none; }
+  .cwrap { position: relative; border-bottom: 1px solid var(--ink); }
+  .cvp { position: relative; overflow: hidden; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; outline-offset: -2px; }
+  .cvp.drag { cursor: grabbing; }
+  .board { position: relative; width: max-content; padding: 110px 150px 200px; will-change: transform; }
+  .ghost { position: absolute; left: 110px; top: 16px; font-size: 230px; line-height: 1; letter-spacing: -0.06em; color: transparent; -webkit-text-stroke: 1px var(--hair); white-space: nowrap; pointer-events: none; }
+  .cgrid { position: relative; display: grid; align-items: start; column-gap: 64px; row-gap: 80px; }
+  .ci { display: flex; flex-direction: column; width: 240px; text-decoration: none; }
+  .ci .cimg { position: relative; aspect-ratio: 4/3; display: grid; place-items: center; overflow: hidden; margin-bottom: 12px; }
+  .ci.flip .cimg { order: 9; margin: 12px 0 0; }   /* 隔一个把图放到文字下面,排版更参差 */
+  .ci .cimg .ini { position: relative; font-size: 30px; color: var(--mute); }
+  .ci img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: left center; -webkit-user-drag: none; }   /* 事件图:透明底,靠左 */
+  .ci .yr { font-size: 72px; line-height: .95; letter-spacing: -0.06em; }
+  .ci .meta { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ink); margin: 10px 0 6px; }
+  .ci .meta .sy { width: 13px; height: 13px; }
+  .ci p { margin: 0 0 6px; font-size: 11px; }
+  .ci .who { font-size: 11px; text-decoration: underline; text-underline-offset: 3px; }
+  .ci:hover .yr { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 8px; }
+  .cleg, .chint { position: absolute; bottom: 0; background: var(--paper); border-top: 1px solid var(--ink); padding: 5px 10px; font-size: 10.5px; }
+  .cleg { left: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; max-width: 78%; border-right: 1px solid var(--ink); }
+  .chint { right: 0; color: var(--mute); text-transform: uppercase; border-left: 1px solid var(--ink); }
+
+  /* ========= 分类说明页 ========= */
+  .sys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 26px 32px; }
+  .sys section { min-width: 0; }
+  .sys h2 { font-size: 12px; text-transform: uppercase; margin: 0 0 6px; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 2px 0; }
+  .sys ol { margin: 0; padding: 0; list-style: none; }
+  .sys .sum { margin-top: 10px; }
+  .sys li { display: grid; grid-template-columns: 64px 1fr; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--hair); }
+
+  .foot { margin-top: 38px; padding-top: 3px; border-top: 1px solid var(--ink); font-size: 12px; }
+
+  /* ========= 手机宽度:列数逐级减少,页面不横向滚动 ========= */
+  @media (max-width: 980px) {
+    .grid  { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  }
+  @media (max-width: 640px) {
+    .grid  { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 8px; }
+    .sys   { grid-template-columns: 1fr; }
+    .fl    { width: 100%; }
+    .vh    { gap: 2px 24px; }
+    .ev    { grid-template-columns: 44px 1fr; }
+    .ev .t { grid-column: 1 / -1; }
+    .cell .nm { display: none; }
+    /* 册子改成上下两页,标签排成一行 */
+    .bw    { padding-right: 0; }
+    .book  { grid-template-columns: 1fr; }
+    .spine { display: none; }
+    .pg.l  { border-bottom: 0; }
+    .rb    { grid-template-columns: 1fr; }
+    .rows  { border-right: 0; }
+    .side  { order: -1; padding-bottom: 8px; border-bottom: 1px solid var(--ink); }   /* 手机上小图放在信息表前面,并且缩小 */
+    .pt, .pband { width: 46%; }
+    .code  { text-align: left; }
+    .tabs  { position: static; width: auto; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .tab   { margin: 0; padding: 0 14px; border-left: 1px solid var(--ink); border-radius: 18px; }
+    .pno   { display: none; }
+    .sec   { padding-right: 0; }
+    /* 年表画布 */
+    .ci    { width: 200px; }
+    .ci .yr { font-size: 56px; }
+    .board { padding: 70px 40px 150px; }
+    .ghost { font-size: 140px; left: 30px; }
+  }
+</style>
+</head>
+
+<body>
+<!-- 页面骨架:顶部 / 中间 #view / 底部。#view 的内容全由下面的 JS 按网址里的 # 画出来 -->
+<div class="wrap">
+  <header class="top">
+    <div class="strip">
+      <span>FWF</span>
+      <span class="sname">Food with Faces</span>
+      <span class="push" id="hcount"></span>
+    </div>
+    <nav aria-label="Sections">
+      <a href="#index" data-nav="index">Index</a>
+      <a href="#chronicle" data-nav="chronicle">Chronicle</a>
+      <a href="#system" data-nav="system">System</a>
+      <button type="button" class="theme" id="theme" aria-label="Switch light or dark theme">Dark</button>
+    </nav>
+  </header>
+
+  <main id="view"></main>
+
+  <footer class="foot" id="fcount"></footer>
+</div>
+
+<script>
+(function () {
+
+  /* ================================================================
+     1. 三套分类
+     H 文化历史 6 个标签,用符号区分(不用颜色)
+     V 视觉分类 4 种身体构成
+     C 颜色分类 9 个家族(一个角色可以有多个主色)
+     F 食物种类 9 类(食物本身是什么)
+     筛选、年表、角色页都从这里读名字,改名字只改这里
+     ================================================================ */
+
+  // H:s 是符号名,对应下面的 SYM
+  var H = {
+    H01: { name: 'Origin & Creation',             s: 'circle'   },
+    H02: { name: 'Identity & Representation',     s: 'square'   },
+    H03: { name: 'Cultural Circulation',          s: 'plus'     },
+    H04: { name: 'Controversy & Public Response', s: 'triangle' },
+    H05: { name: 'Redesign & Transformation',     s: 'diamond'  },
+    H06: { name: 'Disappearance & Revival',       s: 'ring'     }
+  };
+
+  // 符号的形状(10×10 的 SVG)。想换符号,改这里
+  var SYM = {
+    circle:   '<circle cx="5" cy="5" r="4.2"/>',
+    square:   '<rect x="1" y="1" width="8" height="8"/>',
+    plus:     '<path d="M5 1v8M1 5h8" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+    triangle: '<path d="M5 .8 9.4 9H.6z"/>',
+    diamond:  '<path d="M5 .4 9.6 5 5 9.6.4 5z"/>',
+    ring:     '<circle cx="5" cy="5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.5"/>'
+  };
+
+  var V = {
+    'food-body': 'Food as Body',
+    'food-head': 'Food as Head',
+    'pack-body': 'Packaging as Body',
+    'mat-body':  'Food Material as Body'
+  };
+
+  // F 食物种类:这个角色的食物本身属于哪一类
+  var FG = {
+    F01: 'Fruit',
+    F02: 'Vegetable',
+    F03: 'Nut, Seed & Spice',
+    F04: 'Bread & Dough',
+    F05: 'Sweets & Candy',
+    F06: 'Cakes, Cookies & Pastry',
+    F07: 'Rice, Noodles & Dishes',
+    F08: 'Fast Food',
+    F09: 'Meat, Seafood & Egg'
+  };
+
+  var COUNTRY = { US: 'United States', JP: 'Japan', UK: 'United Kingdom', KR: 'South Korea' };
+
+  /* 颜色分类 C
+     参考 Pauls Kupcis 的索引册:同类东西用颜色排成一整块,一眼看出分组。
+     只记每个角色主色的 hex,家族由 family() 按规则算,标准固定。
+     c 只是按钮上小色块的代表色,不是分类依据 */
+  var FAM = {
+    C01: { name: 'Red',     c: '#d3202a' },
+    C02: { name: 'Orange',  c: '#e8892b' },
+    C03: { name: 'Yellow',  c: '#f2c500' },
+    C04: { name: 'Green',   c: '#2f9e5a' },
+    C05: { name: 'Blue',    c: '#2f5fd0' },
+    C06: { name: 'Purple',  c: '#6b3fa0' },
+    C07: { name: 'Pink',    c: '#f06a8a' },
+    C08: { name: 'Brown',   c: '#6b4a2e' },
+    C09: { name: 'Grey',    c: '#b4b4ae' },
+    C10: { name: 'Black',   c: '#0c0c0c' },
+    C11: { name: 'White',   c: '#ffffff' }
+  };
+
+
+  /* ================================================================
+     2. 数据
+     下面 DATA_S 是角色,DATA_E 是事件,新增角色就复制一行改字段。
+     编辑起来更方便的话,用旁边的 CSV 改好发给我,我转回这里。
+
+     角色 DATA_S 的字段:
+       name ini year country creator food medium status
+       body     身体构成,对应 V
+       feat     外形特征
+       primary  主要的文化历史标签 H01-H06,索引里显示它的符号
+       fg       食物种类 F01-F09,对应 FG
+       color    主色 hex 数组,可以有多个,第一个是主色(颜色排列按它分组)。先用预设色,放图后用取色器重取
+       sum      一句话介绍
+       img      角色小图(册子右页)
+       vis      自己做的视觉图(册子左页)。不写就默认 images/vis-编号.png
+       src      来源 [名字, 网址]。先空着,角色页的 Sources 区块保留
+
+     事件 DATA_E 的格式:[年份, 历史标签, 第几个角色, 描述, 图片路径(可不写)]
+       第几个角色从 0 开始(0 = DATA_S 里第一个),程序里统一 +1
+       年表里的图是「事件的图」,放在 images2 文件夹(文件夹名改 EVT_DIR)。
+       图片路径不写,就自动找 images2/fwf-角色编号-事件序号.jpg(找不到再试 .png),
+       例如 Mr. Peanut 的第 1 条事件是 images2/fwf-001-01.jpg,第 2 条是 fwf-001-02.jpg。
+       序号 = 这个角色的事件按年份从早到晚的第几条。没有这张图,年表里就是透明空白
+     ================================================================ */
+  var DATA_S = [
+    {"name": "Mr. Peanut", "ini": "MP", "year": "1916", "country": "US", "creator": "Antonio Gentile / Planters", "food": "Nut", "fg": "F03", "medium": "Trademark contest", "status": "In use", "body": "food-body", "feat": "Eyes, mouth, arms, legs, top hat, monocle, cane", "primary": "H01", "color": ["#fed141", "#000000"], "sum": "A peanut dressed as a gentleman in top hat, monocle and cane; for over a century the face of the Planters brand.", "img": "images/fwf-001.jpg", "vis": "", "src": []},
+    {"name": "Bertie Bassett", "ini": "BB", "year": "1929", "country": "UK", "creator": "Greenly’s agency / Bassett’s", "food": "Liquorice confectionery", "fg": "F05", "medium": "Advertising / trademark figure", "status": "-", "body": "mat-body", "feat": "Liquorice pieces assembled as head, torso and limbs", "primary": "H01", "color": ["#cb2f83", "#ffec0c", "#000000", "#2793f5"], "sum": "A man assembled entirely from Bassett's liquorice allsorts, used as the confectionery brand's mascot.", "img": "images/fwf-002.jpg", "vis": "", "src": []},
+    {"name": "Miss Chiquita (banana form)", "ini": "MC", "year": "1944", "country": "US", "creator": "Dik Browne / Chiquita", "food": "Banana", "fg": "F01", "medium": "Radio advertising / animated mascot", "status": "Retired", "body": "food-body", "feat": "Banana-shaped figure; face, arms, legs, costume", "primary": "H05", "color": ["#fedd02", "#c01125"], "sum": "A banana in costume who acts as the spokeswoman for Chiquita bananas; the fruit itself is her body.", "img": "images/fwf-003.jpg", "vis": "", "src": []},
+    {"name": "Red M&M", "ini": "RM", "year": "1954", "country": "US", "creator": "Mars / BBDO; later Will Vinton Studios", "food": "Chocolate candy", "fg": "F05", "medium": "Television advertising", "status": "In use", "body": "food-body", "feat": "Candy-shaped body, face, arms, white gloves, legs", "primary": "H05", "color": ["#ca0e0f"], "sum": "A plain chocolate candy with arms, legs and white gloves, shown as the confident, wisecracking face of M&M's.", "img": "images/fwf-004.jpg", "vis": "", "src": []},
+    {"name": "Yellow M&M", "ini": "YM", "year": "1954", "country": "US", "creator": "Mars / BBDO; later Will Vinton Studios", "food": "Peanut chocolate candy", "fg": "F05", "medium": "Television advertising", "status": "In use", "body": "food-body", "feat": "Oval candy body, face, arms, white gloves, legs", "primary": "H05", "color": ["#f7c31a"], "sum": "A peanut candy character, the cheerful and naive counterpart to Red.", "img": "images/fwf-005.jpg", "vis": "", "src": []},
+    {"name": "Pillsbury Doughboy (Poppin’ Fresh)", "ini": "PD", "year": "1965", "country": "US", "creator": "Rudy Perz and Milt Schaffer / Pillsbury", "food": "Dough", "fg": "F04", "medium": "Stop-motion television commercial", "status": "In use", "body": "mat-body", "feat": "Dough-shaped human figure, eyes, mouth, arms, legs, chef hat, scarf", "primary": "H01", "color": ["#f4efe2", "#2570ff"], "sum": "A friendly figure made of dough, in chef's hat and scarf, who stands for Pillsbury's refrigerated dough products.", "img": "images/fwf-006.jpg", "vis": "", "src": []},
+    {"name": "Mayor McCheese", "ini": "MM", "year": "1971", "country": "US", "creator": "McDonald’s / McDonaldland creative team", "food": "Cheeseburger", "fg": "F08", "medium": "Television advertising", "status": "-", "body": "food-head", "feat": "Cheeseburger head, human torso, arms, legs, mayoral sash", "primary": "H02", "color": ["#b36d2b", "#b81d57", "#36125a"], "sum": "A cheeseburger-headed official in a mayoral sash who governs McDonaldland, the fantasy world of McDonald's advertising.", "img": "images/fwf-007.jpg", "vis": "", "src": []},
+    {"name": "Officer Big Mac", "ini": "OB", "year": "1971", "country": "US", "creator": "McDonald’s / McDonaldland creative team", "food": "Burger", "fg": "F08", "medium": "Television advertising", "status": "-", "body": "food-head", "feat": "Big Mac head, police uniform, arms, legs, whistle", "primary": "H02", "color": ["#be823c", "#283c82"], "sum": "A police officer with a Big Mac for a head who keeps order in McDonaldland, McDonald's advertising world.", "img": "images/fwf-008.jpg", "vis": "", "src": []},
+    {"name": "Twinkie the Kid", "ini": "TT", "year": "1971", "country": "US", "creator": "Denny Lesser / Hostess", "food": "Snack cake", "fg": "F06", "medium": "Brand advertising / costume promotion", "status": "-", "body": "food-body", "feat": "Twinkie-shaped body, eyes, limbs, cowboy hat, gloves, boots", "primary": "H02", "color": ["#f0c86e", "#6e4628"], "sum": "A Twinkie dressed as a Western cowboy, with hat, gloves and boots, used as Hostess's mascot.", "img": "images/fwf-009.jpg", "vis": "", "src": []},
+    {"name": "Anpanman", "ini": "AN", "year": "1973", "country": "JP", "creator": "Takashi Yanase / Froebel-kan", "food": "Red-bean bread", "fg": "F04", "medium": "Picture book", "status": "In use", "body": "food-head", "feat": "Round bread head, facial features, human body, cape", "primary": "H01", "color": ["#d99a4a", "#d3202a"], "sum": "A hero whose head is a red-bean bun; he gives a piece of his face to feed people who are hungry.", "img": "images/fwf-010.jpg", "vis": "", "src": []},
+    {"name": "Currypanman", "ini": "CU", "year": "1988", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Curry bread", "fg": "F04", "medium": "TV anime", "status": "In use", "body": "food-head", "feat": "Curry-bread head, facial features, human body", "primary": "H01", "color": ["#b06e28", "#783c1e"], "sum": "A curry-bread-headed character in the Anpanman cast, a friend and rival of the hero.", "img": "images/fwf-011.jpg", "vis": "", "src": []},
+    {"name": "Shokupanman", "ini": "SH", "year": "1988", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "White bread", "fg": "F04", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Slice-of-bread head, face, formal outfit", "primary": "H02", "color": ["#f0deb4", "#966432"], "sum": "A white-bread-headed character in formal clothes, a friend of Anpanman who delivers school bread.", "img": "images/fwf-012.jpg", "vis": "", "src": []},
+    {"name": "Omusubiman", "ini": "OU", "year": "1988", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Rice ball", "fg": "F07", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Triangular rice-ball head, facial features, humanoid outfit", "primary": "H01", "color": ["#f5f5f0", "#231f20"], "sum": "A traveling character with an onigiri (rice ball) head in the Anpanman cast.", "img": "images/fwf-013.jpg", "vis": "", "src": []},
+    {"name": "Tendonman", "ini": "TE", "year": "1988", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Tempura rice bowl", "fg": "F07", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Rice-bowl head with food, face, limbs", "primary": "H02", "color": ["#be7832", "#78321e"], "sum": "A character whose head is a tempura rice bowl, a bowl of food worn as a face in the Anpanman cast.", "img": "images/fwf-014.jpg", "vis": "", "src": []},
+    {"name": "Hamburger Kid", "ini": "HK", "year": "1989", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Hamburger", "fg": "F08", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Hamburger head, facial features, Western-style clothing", "primary": "H02", "color": ["#a06432", "#5aa03c"], "sum": "A hamburger-headed character in Western-style clothes in the Anpanman cast.", "img": "images/fwf-015.jpg", "vis": "", "src": []},
+    {"name": "Katsudonman", "ini": "KA", "year": "1989", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Pork-cutlet rice bowl", "fg": "F07", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Food-filled bowl head, facial features, limbs", "primary": "H02", "color": ["#c88c3c", "#f0e6c8"], "sum": "A character whose head is a bowl of rice topped with pork cutlet (katsudon).", "img": "images/fwf-016.jpg", "vis": "", "src": []},
+    {"name": "Kamameshidon", "ini": "KM", "year": "1989", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Rice pot dish", "fg": "F07", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Pot-shaped food head, facial features, limbs", "primary": "H02", "color": ["#785032", "#231f20"], "sum": "A character with a pot-shaped head, drawn from kamameshi, rice cooked and served in a small pot.", "img": "images/fwf-017.jpg", "vis": "", "src": []},
+    {"name": "Melonpanna", "ini": "ME", "year": "1992", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Melon bread", "fg": "F04", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Round melon-bread head, facial features, humanoid body", "primary": "H02", "color": ["#8cc85a", "#f0deb4"], "sum": "A girl character with a melon-bread (melonpan) head in the Anpanman cast.", "img": "images/fwf-018.jpg", "vis": "", "src": []},
+    {"name": "Bob the Tomato", "ini": "BT", "year": "1992", "country": "US", "creator": "Phil Vischer / Big Idea Productions", "food": "Tomato", "fg": "F02", "medium": "1992 screen test; public video in 1993", "status": "In use", "body": "food-body", "feat": "Tomato body with eyes and mouth; no regular arms or legs", "primary": "H01", "color": ["#d22828", "#50a046"], "sum": "A tomato with only eyes and a mouth, no arms or legs, who hosts VeggieTales from a kitchen countertop.", "img": "images/fwf-019.jpg", "vis": "", "src": []},
+    {"name": "Larry the Cucumber", "ini": "LT", "year": "1992", "country": "US", "creator": "Mike Nawrocki and Phil Vischer / Big Idea", "food": "Cucumber", "fg": "F02", "medium": "1992 screen test; public video in 1993", "status": "In use", "body": "food-body", "feat": "Cucumber body with facial features; no regular arms or legs", "primary": "H01", "color": ["#50a046", "#bed78c"], "sum": "A cucumber with no arms or legs, Bob's co-host and the singer of the series' silly songs.", "img": "images/fwf-020.jpg", "vis": "", "src": []},
+    {"name": "Junior Asparagus", "ini": "JA", "year": "1993", "country": "US", "creator": "Big Idea Productions / VeggieTales", "food": "Asparagus", "fg": "F02", "medium": "Direct-to-video animation", "status": "In use", "body": "food-body", "feat": "Asparagus-shaped body, eyes, mouth", "primary": "H02", "color": ["#6eaa46", "#467832"], "sum": "A young asparagus, the child of the VeggieTales cast, whose fears and mistakes drive many of the stories.", "img": "images/fwf-021.jpg", "vis": "", "src": []},
+    {"name": "Rollpanna", "ini": "RO", "year": "1994", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Bread roll", "fg": "F04", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Bread-inspired head, humanoid body and ribbons", "primary": "H02", "color": ["#e6b478", "#f082a0"], "sum": "A girl in the Anpanman cast with ribbons and a bread-roll-inspired head.", "img": "images/fwf-022.jpg", "vis": "", "src": []},
+    {"name": "Frankencelery", "ini": "FR", "year": "1993", "country": "US", "creator": "Big Idea Productions / VeggieTales", "food": "Celery", "fg": "F02", "medium": "Direct-to-video animation: Where’s God When I’m S-Scared?", "status": "-", "body": "food-body", "feat": "Celery-like monster with facial features", "primary": "H02", "color": ["#96c86e", "#6e9650"], "sum": "A celery monster in the style of a horror film, a movie character within the VeggieTales story.", "img": "images/fwf-023.jpg", "vis": "", "src": []},
+    {"name": "Laura Carrot", "ini": "LC", "year": "1995", "country": "US", "creator": "Big Idea Productions / VeggieTales", "food": "Carrot", "fg": "F02", "medium": "Direct-to-video animation", "status": "In use", "body": "food-body", "feat": "Carrot-shaped body, eyes, mouth, green foliage", "primary": "H02", "color": ["#ed7d23", "#50a046"], "sum": "A carrot with green foliage for hair, one of the female leads of the VeggieTales cast.", "img": "images/fwf-024.jpg", "vis": "", "src": []},
+    {"name": "Blue M&M", "ini": "BM", "year": "1995", "country": "US", "creator": "Mars / BBDO", "food": "Chocolate candy", "fg": "F05", "medium": "1995 color-vote advertising", "status": "In use", "body": "food-body", "feat": "Blue candy body, face, arms, gloves, legs", "primary": "H03", "color": ["#2f5fd0", "#f5f5f0"], "sum": "A blue candy with white gloves and a laid-back, cool personality.", "img": "images/fwf-025.jpg", "vis": "", "src": []},
+    {"name": "Green M&M", "ini": "GM", "year": "1997", "country": "US", "creator": "Mars / BBDO", "food": "Chocolate candy", "fg": "F05", "medium": "Television / Super Bowl advertising", "status": "In use", "body": "food-body", "feat": "Green candy body, arms, gloves, legs, changing shoes", "primary": "H04", "color": ["#2f9e5a", "#f5f5f0"], "sum": "A confident green candy known for her footwear, which became a visible part of her image.", "img": "images/fwf-026.jpg", "vis": "", "src": []},
+    {"name": "Madame Blueberry", "ini": "MB", "year": "1998", "country": "US", "creator": "Big Idea Productions / VeggieTales", "food": "Blueberry", "fg": "F01", "medium": "Direct-to-video animation", "status": "In use", "body": "food-body", "feat": "Blueberry body, facial features, clothing in some scenes", "primary": "H02", "color": ["#4650aa", "#828cd2"], "sum": "A blueberry with a face and, in some scenes, clothing; she is the lead of a moral tale in the VeggieTales style.", "img": "images/fwf-027.jpg", "vis": "", "src": []},
+    {"name": "Cream Panda", "ini": "CP", "year": "1998", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Cream-filled bread", "fg": "F04", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Cream-bread head, facial features, humanoid body", "primary": "H02", "color": ["#f5e1a0", "#f5f5f0"], "sum": "A boy with a head of cream-filled bread, known for his energy.", "img": "images/fwf-028.jpg", "vis": "", "src": []},
+    {"name": "Yakisobapanman", "ini": "YA", "year": "1999", "country": "JP", "creator": "Takashi Yanase / Anpanman", "food": "Yakisoba bread", "fg": "F04", "medium": "TV anime", "status": "-", "body": "food-head", "feat": "Bread head with noodle filling, human-like body", "primary": "H02", "color": ["#c89646", "#be3c28"], "sum": "A character with a bun for a head and yakisoba noodles as the filling, one of the many bread heroes of Anpanman's world.", "img": "images/fwf-029.jpg", "vis": "", "src": []},
+    {"name": "Orange M&M", "ini": "OM", "year": "1998", "country": "US", "creator": "Mars / M&M’s", "food": "Crispy chocolate candy", "fg": "F05", "medium": "Television commercial for Crispy M&M’s", "status": "In use", "body": "food-body", "feat": "Orange candy body, facial features, arms, gloves, legs", "primary": "H02", "color": ["#e8892b", "#f5f5f0"], "sum": "A nervous, anxious orange candy with white gloves, whose worrying is his main trait.", "img": "images/fwf-030.jpg", "vis": "", "src": []},
+    {"name": "Kogepan", "ini": "KO", "year": "1999", "country": "JP", "creator": "Miki Takahashi / San-X", "food": "Burnt red-bean bun", "fg": "F04", "medium": "Character illustration; stationery in 2000", "status": "In use", "body": "food-body", "feat": "Burnt bun body, eyes, mouth, small limbs", "primary": "H01", "color": ["#7a4a2a", "#231f20"], "sum": "A bun baked too long and left burnt, turned from a rejected product into a lovable character.", "img": "images/fwf-031.jpg", "vis": "", "src": []},
+    {"name": "Kireipan", "ini": "KI", "year": "2000", "country": "JP", "creator": "Miki Takahashi / San-X", "food": "Bread bun", "fg": "F04", "medium": "Kogepan picture book", "status": "In use", "body": "food-body", "feat": "Bread bun body with face and small limbs", "primary": "H02", "color": ["#e1af6e", "#f0deb4"], "sum": "A perfectly baked bun with bright energy, the opposite of the burnt Kogepan.", "img": "images/fwf-032.jpg", "vis": "", "src": []},
+    {"name": "Bad Apple", "ini": "BA", "year": "2005", "country": "US", "creator": "Kellogg’s / Apple Jacks", "food": "Apple", "fg": "F01", "medium": "Television cereal advertising", "status": "Discontinued", "body": "food-body", "feat": "Red apple body, eyes, mouth, arms, legs", "primary": "H04", "color": ["#c82828", "#50963c", "#231f20"], "sum": "A red apple with arms and legs, drawn as the troublemaker in cereal commercials opposite CinnaMon.", "img": "images/fwf-033.jpg", "vis": "", "src": []},
+    {"name": "CinnaMon", "ini": "CM", "year": "2005", "country": "US", "creator": "Kellogg’s / Apple Jacks", "food": "Cinnamon stick", "fg": "F03", "medium": "Television cereal advertising", "status": "Discontinued", "body": "food-body", "feat": "Brown cinnamon-stick body, face, arms, legs", "primary": "H04", "color": ["#965a32", "#d2aa6e"], "sum": "A brown cinnamon stick with arms and legs, the friendly one of the pair in the cereal commercials.", "img": "images/fwf-034.jpg", "vis": "", "src": []},
+    {"name": "Petunia Rhubarb", "ini": "PR", "year": "2005", "country": "US", "creator": "Big Idea Productions / VeggieTales", "food": "Rhubarb", "fg": "F02", "medium": "Direct-to-video animation", "status": "In use", "body": "food-body", "feat": "Green vegetable body, facial features, red hair in some designs", "primary": "H02", "color": ["#be3c50", "#96be64"], "sum": "A green rhubarb character, sometimes drawn with red hair, in the VeggieTales world.", "img": "images/fwf-035.jpg", "vis": "", "src": []},
+    {"name": "GingerBrave", "ini": "GB", "year": "2009", "country": "KR", "creator": "Devsisters", "food": "Gingerbread cookie", "fg": "F06", "medium": "Mobile game: OvenBreak", "status": "In use", "body": "food-body", "feat": "Gingerbread body, face, arms, legs", "primary": "H01", "color": ["#be783c", "#f5f5f0"], "sum": "A gingerbread cookie hero with a simple face and limbs who became the face of Cookie Run.", "img": "images/fwf-036.jpg", "vis": "", "src": []},
+    {"name": "Annoying Orange", "ini": "AO", "year": "2009", "country": "US", "creator": "Dane Boedigheimer", "food": "Orange", "fg": "F01", "medium": "YouTube video", "status": "In use", "body": "food-body", "feat": "Real orange with composited human eyes and mouth", "primary": "H03", "color": ["#f0821e", "#50963c"], "sum": "A real orange with digitally added eyes and a mouth, whose jokes annoy the fruit and vegetables around him.", "img": "images/fwf-037.jpg", "vis": "", "src": []},
+    {"name": "GingerDozer", "ini": "GD", "year": "2011", "country": "KR", "creator": "Devsisters", "food": "Gingerbread cookie", "fg": "F06", "medium": "Mobile game: OvenBreak", "status": "-", "body": "food-body", "feat": "Gingerbread body, face, small limbs", "primary": "H01", "color": ["#af6932", "#f5f5f0"], "sum": "A gingerbread cookie character in the Cookie Run (OvenBreak) world.", "img": "images/fwf-038.jpg", "vis": "", "src": []},
+    {"name": "Tonkatsu", "ini": "TO", "year": "2012", "country": "JP", "creator": "San-X / Sumikkogurashi", "food": "Pork cutlet end piece", "fg": "F09", "medium": "Stationery character series: Sumikkogurashi", "status": "In use", "body": "food-body", "feat": "Pink cutlet-like body, eyes, mouth", "primary": "H02", "color": ["#f0a0aa", "#d2a05a"], "sum": "A pink, cutlet-like character who prefers the corners, one of the Sumikkogurashi (\"living in the corner\") cast.", "img": "images/fwf-039.jpg", "vis": "", "src": []},
+    {"name": "Ebifurai no Shippo", "ini": "EN", "year": "-", "country": "JP", "creator": "San-X / Sumikkogurashi", "food": "Fried shrimp tail", "fg": "F09", "medium": "Stationery character series: Sumikkogurashi", "status": "In use", "body": "food-body", "feat": "Fried shrimp tail body, eyes and mouth", "primary": "H02", "color": ["#e19646", "#be6428"], "sum": "A fried shrimp tail, the part people leave on the plate, who is friends with Tonkatsu.", "img": "images/fwf-040.jpg", "vis": "", "src": []},
+    {"name": "Tapioca", "ini": "TA", "year": "-", "country": "JP", "creator": "San-X / Sumikkogurashi", "food": "Tapioca pearl", "fg": "F05", "medium": "Stationery character series: Sumikkogurashi", "status": "In use", "body": "food-body", "feat": "Round tapioca pearl, simple face", "primary": "H02", "color": ["#3c2d28", "#c8a078"], "sum": "A tapioca pearl left in the cup after the milk tea is gone.", "img": "images/fwf-041.jpg", "vis": "", "src": []},
+    {"name": "Strawberry Cookie", "ini": "SC", "year": "2012", "country": "KR", "creator": "Devsisters", "food": "Strawberry-flavored cookie", "fg": "F06", "medium": "Mobile game: OvenBreak 2", "status": "-", "body": "food-body", "feat": "Cookie body, face, arms, legs, strawberry hood", "primary": "H01", "color": ["#dc4664", "#c8965a"], "sum": "A cookie character with a strawberry hood from the Cookie Run games.", "img": "images/fwf-042.jpg", "vis": "", "src": []},
+    {"name": "GingerBright", "ini": "GI", "year": "2012", "country": "KR", "creator": "Devsisters", "food": "Gingerbread cookie", "fg": "F06", "medium": "Mobile game: OvenBreak 2", "status": "-", "body": "food-body", "feat": "Gingerbread body, eyes, mouth, arms, legs", "primary": "H01", "color": ["#c37d41", "#f5f5f0"], "sum": "A gingerbread character in the Cookie Run games, one of the series' gingerbread cookies.", "img": "images/fwf-043.jpg", "vis": "", "src": []},
+    {"name": "Ms. Brown M&M", "ini": "MS", "year": "2012", "country": "US", "creator": "Mars / M&M’s", "food": "Chocolate candy", "fg": "F05", "medium": "Super Bowl television advertising", "status": "In use", "body": "food-body", "feat": "Brown candy body, face, arms, gloves, legs", "primary": "H02", "color": ["#6b4a2e", "#f5f5f0"], "sum": "A brown chocolate candy portrayed as a poised, businesslike woman.", "img": "images/fwf-044.jpg", "vis": "", "src": []},
+    {"name": "Gudetama", "ini": "GU", "year": "2013", "country": "JP", "creator": "Sanrio", "food": "Egg", "fg": "F09", "medium": "Character brand / merchandising", "status": "In use", "body": "food-body", "feat": "Egg yolk body, eyes, mouth, small limbs", "primary": "H02", "color": ["#fad246", "#f5f5f0"], "sum": "An egg yolk that would rather lie around than do anything; the name blends 'gudaguda' (lazy) with 'tamago' (egg).", "img": "images/fwf-045.jpg", "vis": "", "src": []},
+    {"name": "KIRIMI-chan.", "ini": "KR", "year": "2013", "country": "JP", "creator": "Sanrio", "food": "Salmon fillet", "fg": "F09", "medium": "Character brand / merchandising", "status": "In use", "body": "food-body", "feat": "Salmon-slice body, facial features, limbs", "primary": "H02", "color": ["#f5826e", "#f5f5f0"], "sum": "A slice of salmon fillet turned into a character; in Japanese, 'kirimi' means a cut slice of fish.", "img": "images/fwf-046.jpg", "vis": "", "src": []},
+    {"name": "Frank (Sausage Party)", "ini": "FA", "year": "2016", "country": "US", "creator": "Seth Rogen, Evan Goldberg and filmmakers / Sony", "food": "Sausage", "fg": "F09", "medium": "Animated feature film", "status": "-", "body": "food-body", "feat": "Sausage body, face, arms, legs", "primary": "H02", "color": ["#c8645a", "#f5f5f0"], "sum": "A sausage in an adult-rated animated comedy, where supermarket food is given human voices and desires.", "img": "images/fwf-047.jpg", "vis": "", "src": []},
+    {"name": "Brenda Bun (Sausage Party)", "ini": "BS", "year": "2016", "country": "US", "creator": "Seth Rogen, Evan Goldberg and filmmakers / Sony", "food": "Hot-dog bun", "fg": "F04", "medium": "Animated feature film", "status": "-", "body": "food-body", "feat": "Bun body, eyes, mouth, arms, legs", "primary": "H02", "color": ["#e1b978", "#f5f5f0"], "sum": "A hot-dog bun, Frank's companion among the supermarket products.", "img": "images/fwf-048.jpg", "vis": "", "src": []},
+    {"name": "Purple M&M", "ini": "PM", "year": "2022", "country": "US", "creator": "Mars / M&M’s", "food": "Peanut chocolate candy", "fg": "F05", "medium": "Brand character launch / music video", "status": "In use", "body": "food-body", "feat": "Purple peanut-shaped candy, eyes, limbs, white gloves", "primary": "H02", "color": ["#6b3fa0", "#f5f5f0"], "sum": "A peanut-shaped purple candy with white gloves, joining the older M&M's characters.", "img": "images/fwf-049.jpg", "vis": "", "src": []},
+    {"name": "Frosted Strawberry Pop-Tart (Bowl mascot)", "ini": "FS", "year": "2023", "country": "US", "creator": "Pop-Tarts / Kellanova", "food": "Toaster pastry", "fg": "F06", "medium": "College football bowl sponsorship", "status": "Revived", "body": "food-body", "feat": "Rectangular pastry body, face, arms, legs", "primary": "H03", "color": ["#f06a8a", "#d2a064"], "sum": "A rectangular strawberry-frosted pastry with a face and limbs, used as the mascot of a college football bowl.", "img": "images/fwf-050.jpg", "vis": "", "src": []}
+  ];
+
+  var DATA_E = [
+    [1916, "H01", 0, "Planters trademark contest: the anthropomorphic peanut character is created."],
+    [2020, "H06", 0, "Planters marks Mr. Peanut's 'death' in a January 2020 campaign."],
+    [1944, "H01", 2, "Miss Chiquita appears as an anthropomorphic banana in Chiquita's radio advertising and animated mascot work."],
+    [1987, "H05", 2, "The banana form is replaced: Miss Chiquita is redrawn as a human woman, no longer a fruit with a face."],
+    [1954, "H01", 3, "Red M&M appears in M&M's television advertising."],
+    [1995, "H05", 3, "The early M&M's candy figures are reworked with distinct personalities."],
+    [1954, "H01", 4, "Yellow M&M appears in M&M's television advertising."],
+    [1995, "H05", 4, "The peanut candy character gains a recognizable comedic personality in the 1995 M&M's relaunch."],
+    [1965, "H01", 5, "Pillsbury Doughboy debuts in a stop-motion television commercial: a dough figure emerging from a refrigerated dough can."],
+    [1971, "H02", 6, "McDonaldland introduces a cheeseburger-headed figure as the mayor."],
+    [1971, "H02", 7, "McDonaldland introduces a burger-headed figure as the police officer."],
+    [1971, "H02", 8, "Hostess presents a cream-filled snack cake as a Western cowboy."],
+    [1973, "H01", 9, "Takashi Yanase's picture book introduces Anpanman, a red-bean bun hero who shares his face with the hungry."],
+    [1988, "H03", 9, "Anpanman first airs as a TV anime (official chronology)."],
+    [1988, "H01", 10, "First TV appearance recorded in the official chronology (October 1988)."],
+    [1988, "H01", 11, "First TV appearance recorded in the official chronology (1988)."],
+    [1988, "H01", 12, "Appears in the official 1988 TV chronology."],
+    [1988, "H01", 13, "Appears in the first TV episode of Anpanman in 1988."],
+    [1989, "H01", 14, "First appears on TV in May 1989."],
+    [1989, "H01", 15, "First appears on TV with Kamameshidon in July 1989."],
+    [1989, "H01", 16, "Belongs to the Donburiman trio introduced on TV in 1989."],
+    [1992, "H01", 17, "Joins the TV cast in September 1992."],
+    [1992, "H01", 18, "Bob appears in a screen test; he hosts the first VeggieTales video in 1993."],
+    [1992, "H01", 19, "Larry appears in a screen test and becomes VeggieTales co-host in 1993."],
+    [1993, "H01", 20, "Junior appears in the first VeggieTales release, in a story about fear."],
+    [1994, "H01", 21, "The official chronology records her creation, with both good and evil hearts, in 1994."],
+    [1993, "H01", 22, "A celery monster appears in the scary film Junior Asparagus watches in the first VeggieTales release."],
+    [1995, "H01", 23, "Her official profile lists Are You My Neighbor? as her first appearance."],
+    [1995, "H03", 24, "A public vote selects the new blue candy colour, which is developed into a character."],
+    [1997, "H01", 25, "Green M&M appears in television / Super Bowl advertising."],
+    [2022, "H04", 25, "A redesign of her footwear becomes a widely discussed brand controversy."],
+    [1998, "H01", 26, "Madame Blueberry is used in a VeggieTales story about greed and gratitude."],
+    [1998, "H01", 27, "Arrives from Custard Country on TV in April 1998."],
+    [1999, "H01", 28, "Makes a documented TV debut in January 1999."],
+    [1998, "H02", 29, "The anxious Orange character promotes Crispy M&M's around its US launch."],
+    [1999, "H01", 30, "Miki Takahashi first draws Kogepan at San-X: a burnt red-bean bun that could not be sold."],
+    [2000, "H03", 30, "Kogepan stationery launches."],
+    [2000, "H02", 31, "Kireipan, a well-baked and energetic bun, appears in a Kogepan picture book as a contrast to Kogepan."],
+    [2005, "H01", 32, "Apple Jacks advertising features Bad Apple, a scheming apple villain."],
+    [2005, "H04", 32, "Nutrition advocacy groups challenge the ads (CSPI letter, 2005)."],
+    [2006, "H06", 32, "The campaign is discontinued by 2006."],
+    [2005, "H01", 33, "The friendly cinnamon stick faces Bad Apple in Apple Jacks advertising."],
+    [2006, "H06", 33, "The original ad campaign is discontinued by 2006."],
+    [2005, "H01", 34, "Debuts in Duke and the Great Pie War, with a story about self-worth."],
+    [2009, "H01", 35, "A gingerbread cookie escaping the witch's oven appears in the mobile game OvenBreak and launches the Cookie Run franchise."],
+    [2009, "H03", 36, "The talking-orange videos spread on YouTube."],
+    [2011, "H01", 37, "Listed in the Cookie Run release chronology in November 2011."],
+    [2012, "H02", 38, "A pork cutlet end piece, left uneaten because it is mostly fat, joins the Sumikkogurashi cast."],
+    [2012, "H01", 41, "Listed among the 2012 Cookie Run game releases (OvenBreak 2)."],
+    [2012, "H01", 42, "Appears in the 2012 OvenBreak 2 character roster."],
+    [2012, "H02", 43, "Debuts at the Super Bowl in television advertising as a businesslike female candy character."],
+    [2013, "H02", 44, "Sanrio debuts the lethargic egg character."],
+    [2013, "H02", 45, "Sanrio debuts a salmon slice that wishes to be eaten deliciously."],
+    [2016, "H02", 46, "A sausage discovers the fate of supermarket food in the animated film Sausage Party."],
+    [2016, "H02", 47, "An anthropomorphic bun is one of the supermarket characters in Sausage Party."],
+    [2022, "H02", 48, "Mars introduces Purple as a new spokescandy associated with acceptance."],
+    [2023, "H03", 49, "The Pop-Tarts Bowl edible-mascot campaign: a pastry character descends into a toaster."],
+    [2024, "H06", 49, "Revived in 2024 marketing."]
+  ];
+
+  var EVT_DIR = 'images2';        // 事件图片的文件夹
+  var S = [];
+  var E = [];
+
+  // 装数据:rawS 是角色数组,rawE 是 [年份, 标签, 第几个角色(从0开始), 描述, 图片] 数组
+  function setData(rawS, rawE) {
+    S.length = 0; E.length = 0;
+    rawS.forEach(function (s) { S.push(s); });
+    rawE.forEach(function (a) {
+      var e = { y: a[0], h: a[1], n: a[2] + 1, t: a[3], img: a[4] || '' };
+      if (S[e.n - 1] && H[e.h]) E.push(e);    // 角色或标签对不上的事件先跳过
+    });
+
+
+  /* ================================================================
+     4. 整理数据
+     自动加上 id(FWF-001)、网址名(fwf-001)、全部标签、颜色家族
+     ================================================================ */
+  S.forEach(function (s, i) {
+    ['year', 'country', 'creator', 'food', 'fg', 'medium', 'status', 'sum', 'feat'].forEach(function (k) { s[k] = s[k] || ''; });
+    s.ini = s.ini || s.name.slice(0, 2).toUpperCase();
+    s.img = s.img || 'images/fwf-' + pad(i + 1) + '.jpg';
+    s.color = s.color || [];
+    s.vis = s.vis || 'images/vis-' + pad(i + 1) + '.png';
+    // 来源去重:同一个网址只留一条
+    var seenU = {};
+    s.src = (s.src || []).filter(function (x) { if (seenU[x[1]]) return false; seenU[x[1]] = 1; return true; });
+    s.n = i + 1;
+    s.id = 'FWF-' + pad(s.n);
+    s.hash = s.id.toLowerCase();
+
+    s.tags = [s.primary];
+    E.forEach(function (e) {
+      if (e.n === s.n && s.tags.indexOf(e.h) < 0) s.tags.push(e.h);
+    });
+
+    // 颜色家族:每个主色算一次,去重。第一个用来排序
+    s.fams = [];
+    s.color.forEach(function (c) {
+      var f = family(c);
+      if (s.fams.indexOf(f) < 0) s.fams.push(f);
+    });
+    s.fam = s.fams[0] || '';        // 没取色就是空,颜色排列里放最后
+  });
+
+  // 事件图片的路径:没写就按「角色编号-事件序号」自动生成。序号是这个角色的事件按年份排的第几条
+  var seqOf = {};
+  E.slice().sort(function (a, b) { return a.y - b.y; }).forEach(function (e) {
+    seqOf[e.n] = (seqOf[e.n] || 0) + 1;
+    if (!e.img) {
+      var base = EVT_DIR + '/fwf-' + pad(e.n) + '-' + (seqOf[e.n] < 10 ? '0' : '') + seqOf[e.n];
+      e.img = base + '.jpg';
+      e.alt = base + '.png';      // .jpg 找不到就试 .png
+    }
+  });
+  }   // setData 结束
+
+  var TOTAL = 100;                                      // 计划收集的总数
+  var filt = { v: null, g: null, h: null, c: null, k: null };    // 当前筛选,null = 没选。g 食物种类,k 颜色
+  var order = 'number';                                 // 索引排列方式:number / colour
+  var view = document.getElementById('view');
+
+
+  /* ================================================================
+     5. 小工具
+     ================================================================ */
+  function pad(n) { return String(n).padStart(3, '0'); }
+
+  // 文字放进页面前先转义,不然 M&M's 的 & 会出问题
+  function esc(x) {
+    return String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // 历史标签的符号
+  function sym(h) {
+    return '<svg class="sy" viewBox="0 0 10 10" width="10" height="10" fill="currentColor" aria-hidden="true">' + SYM[H[h].s] + '</svg>';
+  }
+  function tag(h) { return '<span class="tag">' + sym(h) + h + ' ' + esc(H[h].name) + '</span>'; }
+
+  // 颜色家族的小色块
+  // 点色块时显示的 RGB 文字
+  function rgbText(hex) { return 'RGB ' + parseInt(hex.slice(1, 3), 16) + ', ' + parseInt(hex.slice(3, 5), 16) + ', ' + parseInt(hex.slice(5, 7), 16); }
+  function fsw(k) { return '<i class="sw" style="background:' + FAM[k].c + '"></i>'; }
+
+  // hex 转 色相 / 饱和度 / 明度
+  function hexToHsl(hex) {
+    var r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min, l = (max + min) / 2, h = 0, s = 0;
+    if (d > 0) {
+      s = d / (1 - Math.abs(2 * l - 1));
+      if (max === r) h = 60 * (((g - b) / d) % 6);
+      else if (max === g) h = 60 * ((b - r) / d + 2);
+      else h = 60 * ((r - g) / d + 4);
+      if (h < 0) h += 360;
+    }
+    return { h: h, s: s, l: l };
+  }
+
+  // 颜色分类规则,按顺序判断,先中先算
+  function family(hex) {
+    var c = hexToHsl(hex), h = c.h, s = c.s, l = c.l;
+    if (l < 0.16) return 'C10';                                      // 黑
+    if (l > 0.9) return 'C11';                                       // 白
+    if (s < 0.15 || l > 0.82) return 'C09';                          // 灰(饱和度很低,或很浅)
+    if ((h < 42 || h >= 340) && l < 0.4 && s < 0.7) return 'C08';   // 偏暗的红橙 = 棕
+    if (h < 15 || h >= 350) return 'C01';                            // 红
+    if (h < 42) return s < 0.55 ? 'C08' : 'C02';                     // 橙:饱和度低的(花生壳)算棕,高的才算橙
+    if (h < 70) return 'C03';                                        // 黄
+    if (h < 170) return 'C04';                                       // 绿
+    if (h < 260) return 'C05';                                       // 蓝
+    if (h < 290) return 'C06';                                       // 紫
+    return 'C07';                                                    // 粉
+  }
+
+  // 底色深用白字,底色浅用黑字
+  function onColor(hex) {
+    var n = [1, 3, 5].map(function (i) {
+      var v = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    });
+    return (0.2126 * n[0] + 0.7152 * n[1] + 0.0722 * n[2]) > 0.4 ? '#0c0c0c' : '#ffffff';
+  }
+
+  // 一个颜色 = 纯色;多个颜色 = 并排竖条,硬边,不渐变
+  function stripes(cols) {
+    if (!cols.length) return 'var(--wash)';      // 还没取色:灰底
+    if (cols.length === 1) return cols[0];
+    var w = 100 / cols.length;
+    return 'linear-gradient(90deg,' + cols.map(function (c, i) {
+      return c + ' ' + (i * w) + '% ' + ((i + 1) * w) + '%';
+    }).join(',') + ')';
+  }
+
+  function byHash(h) {
+    for (var i = 0; i < S.length; i++) if (S[i].hash === h) return S[i];
+    return null;
+  }
+
+  // 筛选:不同组要同时满足,没选的组不限制
+  function matches(s) {
+    if (filt.v && s.body !== filt.v) return false;
+    if (filt.g && s.fg !== filt.g) return false;
+    if (filt.h && s.tags.indexOf(filt.h) < 0) return false;
+    if (filt.c && s.country !== filt.c) return false;
+    if (filt.k && s.fams.indexOf(filt.k) < 0) return false;   // 多色角色:有一个颜色符合就算
+    return true;
+  }
+
+  // 图片加载失败(还没放图)就删掉 <img>,位置留空
+  var IMG = function (s) {
+    return '<img src="' + esc(s.img) + '" alt="' + esc(s.name) + '" onerror="this.remove()">';
+  };
+
+
+  /* ================================================================
+     6. 四个页面
+     ================================================================ */
+
+  // ---- 索引页 ----
+  // 一个有资料的格子:缩略图 + 颜色条
+  function cellOf(s) {
+    return '<a class="cell' + (matches(s) ? '' : ' dim') + '" href="#' + s.hash + '" aria-label="' + esc(s.id + ' ' + s.name) + '">' +
+      '<span class="no"><span>#' + pad(s.n) + '</span>' + sym(s.primary) + '</span>' +
+      '<div class="thumb">' + IMG(s) + '</div>' +
+      '<div class="bar" style="background:' + stripes(s.color) + '"></div>' +
+      '<div class="nm">' + esc(s.name) + '</div></a>';
+  }
+
+  // 没收集的格子
+  function emptyCell(i) {
+    return '<div class="cell empty" aria-hidden="true"><span class="no"><span>#' + pad(i) + '</span></span><div class="thumb"></div></div>';
+  }
+
+  function renderIndex() {
+    var cells = '';
+
+    if (order === 'number') {
+      // 按编号:#001 到 #100,没收集的留空
+      for (var i = 1; i <= TOTAL; i++) {
+        cells += S[i - 1] ? cellOf(S[i - 1]) : emptyCell(i);
+      }
+    } else {
+      // 按颜色:同一家族放一起,每组前加标题行。编号不变,空格不显示
+      var last = null;
+      S.slice().sort(function (a, b) {
+        var x = a.fam || 'Z', y = b.fam || 'Z';          // 没取色的排最后
+        return x < y ? -1 : x > y ? 1 : a.n - b.n;
+      }).forEach(function (s) {
+        if (s.fam !== last) {
+          var n = S.filter(function (x) { return x.fam === s.fam; }).length;
+          cells += s.fam
+            ? '<div class="ghead"><button type="button" class="tagbtn" data-f="k" data-k="' + s.fam + '" aria-label="' + esc(FAM[s.fam].name) + '">' + fsw(s.fam) + '</button><span>' + (filt.k === s.fam ? s.fam + ' ' + esc(FAM[s.fam].name) : '') + '</span><span>' + pad(n).slice(1) + '</span></div>'
+            : '<div class="ghead"><span>-</span><span>Colour not sampled yet</span><span>' + pad(n).slice(1) + '</span></div>';
+          last = s.fam;
+        }
+        cells += cellOf(s);
+      });
+    }
+
+    // 筛选按钮。颜色那排只列出已经出现过的家族,收集多了会自动变多
+    var oc = ['number', 'colour'].map(function (k) {
+      return '<button type="button" class="chip" data-f="o" data-k="' + k + '" aria-pressed="' + (order === k) + '">' + k.charAt(0).toUpperCase() + k.slice(1) + '</button>';
+    }).join('');
+    var vc = Object.keys(V).map(function (k) {
+      return '<button type="button" class="chip" data-f="v" data-k="' + k + '" aria-pressed="' + (filt.v === k) + '">' + esc(V[k]) + '</button>';
+    }).join('');
+    var gc = Object.keys(FG).map(function (k) {
+      return '<button type="button" class="chip" data-f="g" data-k="' + k + '" aria-pressed="' + (filt.g === k) + '">' + esc(FG[k]) + '</button>';
+    }).join('');
+    var hc = Object.keys(H).map(function (k) {
+      return '<button type="button" class="chip" data-f="h" data-k="' + k + '" aria-pressed="' + (filt.h === k) + '">' + sym(k) + k + ' ' + esc(H[k].name) + '</button>';
+    }).join('');
+    var kc = Object.keys(FAM).map(function (k) {   // 11 个颜色家族一直全部显示,包括黑和白
+      return '<button type="button" class="chip kc" data-f="k" data-k="' + k + '" aria-pressed="' + (filt.k === k) + '" aria-label="' + esc(FAM[k].name) + '">' + fsw(k) + (filt.k === k ? esc(FAM[k].name) : '') + '</button>';
+    }).join('');
+    var cc = Object.keys(COUNTRY).map(function (k) {
+      return '<button type="button" class="chip" data-f="c" data-k="' + k + '" aria-pressed="' + (filt.c === k) + '">' + esc(COUNTRY[k]) + '</button>';
+    }).join('');
+
+    view.innerHTML =
+      '<h1 class="hero">Food with Faces</h1>' +
+      '<h2 class="vh"><span>INDEX</span><span class="sub">Index of specimens</span><span class="r">#001 - #' + pad(TOTAL) + '</span></h2>' +
+      '<div class="filters">' +
+        '<div class="frow"><span class="fl">Order</span>' + oc + '</div>' +
+        '<div class="frow"><span class="fl">Visual</span>' + vc + '</div>' +
+        '<div class="frow"><span class="fl">Food</span>' + gc + '</div>' +
+        (kc ? '<div class="frow"><span class="fl">Colour</span>' + kc + '</div>' : '') +   // 一个颜色都没取时不显示这一行
+        '<div class="frow"><span class="fl">History</span>' + hc + '</div>' +
+        '<div class="frow"><span class="fl">Country</span>' + cc + '<span class="count">' + S.filter(matches).length + ' / ' + S.length + ' specimens</span></div>' +
+      '</div>' +
+      '<div class="grid">' + cells + '</div>';
+  }
+
+  // ---- 年表页:一整块可以四面拖动的大画布 ----
+  var pan = null;   // 当前画布的拖动状态,离开年表页就清掉
+
+  // 拖动:鼠标 / 手指 / 触控板 / 方向键,范围限制在画布大小里
+  function makePan(wrap, vp, board) {
+    var x = 0, y = 0, d = null, moved = false;
+
+    function go(nx, ny) {
+      var minX = Math.min(0, vp.clientWidth - board.offsetWidth);
+      var minY = Math.min(0, vp.clientHeight - board.offsetHeight);
+      x = Math.max(minX, Math.min(0, nx));
+      y = Math.max(minY, Math.min(0, ny));
+      board.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    }
+    // 高度撑满窗口剩下的部分,窗口变化时重新算
+    function fit() {
+      vp.style.height = Math.max(320, window.innerHeight - wrap.getBoundingClientRect().top - 14) + 'px';
+      go(x, y);
+    }
+
+    vp.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      d = { px: e.clientX, py: e.clientY, ox: x, oy: y };
+      moved = false;
+    });
+    vp.addEventListener('pointermove', function (e) {
+      if (!d) return;
+      var dx = e.clientX - d.px, dy = e.clientY - d.py;
+      // 先动超过 5px 才算拖动,不然点链接会被吃掉
+      if (!moved && Math.abs(dx) + Math.abs(dy) > 5) {
+        moved = true;
+        vp.classList.add('drag');
+        try { vp.setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      if (moved) go(d.ox + dx, d.oy + dy);
+    });
+    function end() { d = null; vp.classList.remove('drag'); }
+    vp.addEventListener('pointerup', end);
+    vp.addEventListener('pointercancel', end);
+    // 拖完松手不要触发链接跳转
+    vp.addEventListener('click', function (e) {
+      if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; }
+    }, true);
+
+    vp.addEventListener('wheel', function (e) {
+      e.preventDefault();
+      var k = e.deltaMode === 1 ? 16 : 1;
+      go(x - e.deltaX * k, y - e.deltaY * k);
+    }, { passive: false });
+    vp.addEventListener('keydown', function (e) {
+      var m = { ArrowLeft: [120, 0], ArrowRight: [-120, 0], ArrowUp: [0, 120], ArrowDown: [0, -120] }[e.key];
+      if (m) { e.preventDefault(); go(x + m[0], y + m[1]); }
+    });
+
+    fit();
+    return { fit: fit };
+  }
+
+  function renderChron() {
+    var ev = E.slice().sort(function (a, b) { return a.y - b.y; });
+    if (!ev.length) { view.innerHTML = '<h1 class="vh"><span>CHRONICLE</span></h1><p class="sum">No events yet.</p>'; return; }
+    var cols = Math.max(5, Math.round(Math.sqrt(ev.length * 1.6)));   // 事件越多,画布越宽
+    var drop = [0, 72, 26, 118, 50];                                  // 每格往下错开的距离,排版参差
+
+    var items = ev.map(function (e, i) {
+      var s = S[e.n - 1], col = i % cols, row = Math.floor(i / cols);
+      var top = drop[(col * 3 + row * 2) % drop.length];
+      // 事件有图就放图;没图的事件只有文字
+      var pic = '<span class="cimg"><img src="' + esc(e.img) + '"' + (e.alt ? ' data-alt="' + esc(e.alt) + '"' : '') +
+        ' alt="" draggable="false" onerror="var a=this.getAttribute(\'data-alt\');if(a){this.removeAttribute(\'data-alt\');this.src=a}else{this.remove()}"></span>';
+      return '<a class="ci' + (i % 2 ? ' flip' : '') + '" href="#' + s.hash + '" style="margin-top:' + top + 'px">' + pic +
+        '<span class="yr">' + e.y + '</span>' +
+        '<span class="meta">' + sym(e.h) + e.h + ' ' + esc(H[e.h].name) + '</span>' +
+        '<p>' + esc(e.t) + '</p>' +
+        '<span class="who">' + s.id + ' ' + esc(s.name) + '</span></a>';
+    }).join('');
+
+    var legend = Object.keys(H).map(function (k) {
+      return '<span class="tag">' + sym(k) + k + ' ' + esc(H[k].name) + '</span>';
+    }).join('');
+    var span = ev[0].y + ' - ' + ev[ev.length - 1].y;
+
+    view.innerHTML =
+      '<h1 class="vh"><span>CHRONICLE</span><span class="sub">Events by year</span><span class="r">' + span + '</span></h1>' +
+      '<div class="cwrap">' +
+        '<div class="cvp" tabindex="0" role="region" aria-label="Chronicle canvas. Drag or use arrow keys to move.">' +
+          '<div class="board"><div class="ghost">' + span.replace(' - ', '-') + '</div>' +
+          '<div class="cgrid" style="grid-template-columns:repeat(' + cols + ',240px)">' + items + '</div></div>' +
+        '</div>' +
+        '<div class="cleg">' + legend + '</div>' +
+        '<div class="chint">Drag / scroll / arrow keys</div>' +
+      '</div>';
+
+    var wrap = view.querySelector ? view.querySelector('.cwrap') : null;
+    if (wrap) pan = makePan(wrap, wrap.querySelector('.cvp'), wrap.querySelector('.board'));
+  }
+
+  // ---- 分类说明页:对照规则用 ----
+  function renderSystem() {
+    var hl = Object.keys(H).map(function (k) {
+      return '<li><span>' + sym(k) + ' ' + k + '</span><span>' + esc(H[k].name) + '</span></li>';
+    }).join('');
+    var vl = Object.keys(V).map(function (k, i) {
+      return '<li><span>V0' + (i + 1) + '</span><span>' + esc(V[k]) + '</span></li>';
+    }).join('');
+    var cl = Object.keys(FAM).map(function (k) {
+      return '<li><span>' + fsw(k) + ' ' + k + '</span><span>' + esc(FAM[k].name) + '</span></li>';   // 一行一个:色块 + 代码 + 英文名
+    }).join('');
+
+    view.innerHTML =
+      '<h1 class="vh"><span>SYSTEM</span><span class="sub">Three classification systems</span></h1>' +
+      '<div class="sys">' +
+        '<section><h2>Entry rules</h2><ol>' +
+          '<li><span>R1</span><span>The food, drink, candy or its packaging is itself the character.</span></li>' +
+          '<li><span>R2</span><span>It has a face or human traits.</span></li>' +
+          '<li><span>R3</span><span>At least one checkable source for year and creator or brand.</span></li></ol></section>' +
+        '<section><h2>Record fields</h2><ol>' +
+          '<li><span>A</span><span>ID, name, year, country, creator, category, food group, medium, status</span></li>' +
+          '<li><span>B</span><span>Image, body construction, colour, features</span></li>' +
+          '<li><span>C</span><span>Events with year and source</span></li></ol></section>' +
+        '<section><h2>Visual classification</h2><ol>' + vl + '</ol></section>' +
+        '<section><h2>Cultural history</h2><ol>' + hl + '</ol></section>' +
+        '<section><h2>Colour classification</h2><ol>' + cl + '</ol>' +
+          '<p class="sum">A character can have several colours, recorded as RGB values. The family is calculated from hue, saturation and lightness. The first colour decides the order.</p></section>' +
+        '<section><h2>Food classification</h2><ol>' + Object.keys(FG).map(function (k) {
+          return '<li><span>' + k + '</span><span>' + esc(FG[k]) + '</span></li>';
+        }).join('') + '</ol></section>' +
+      '</div>';
+  }
+
+  // 条形码:按编号字符生成,只是装饰
+  function barcode(str) {
+    var x = 0, out = '';
+    str.toUpperCase().split('').forEach(function (ch) {
+      var c = ch.charCodeAt(0);
+      for (var b = 0; b < 8; b++) {
+        var w = ((c >> b) & 1) ? 3 : 1.5;
+        if (b % 2 === 0) out += '<rect x="' + x + '" y="0" width="' + w + '" height="20"/>';
+        x += w + 1;
+      }
+    });
+    return '<svg class="bc" viewBox="0 0 ' + x + ' 20" preserveAspectRatio="none" fill="currentColor" aria-hidden="true">' + out + '</svg>';
+  }
+
+  // ---- 单个角色页:摊开的册子 ----
+  function renderSpec(s) {
+    var prev = S[s.n - 2], next = S[s.n];
+    var evs = E.filter(function (e) { return e.n === s.n; }).sort(function (a, b) { return a.y - b.y; });
+
+    // 右页的一行:编号 + 名称 + 值(大写由样式处理)
+    function row(i, k, v) { return '<div class="rs"><span class="i">' + i + '</span><span class="t"><span class="k">' + k + '</span>' + v + '</span></div>'; }
+    function head(i, label) { return '<div class="rs h"><span class="i">' + i + '</span><span class="t">[' + label + ']</span></div>'; }
+
+    var rows =
+      head('02', 'Record') +
+      row('a.', 'Year', esc(s.year)) +
+      row('b.', 'Country', esc(COUNTRY[s.country] || s.country)) +
+      row('c.', 'Creator', esc(s.creator)) +
+      row('d.', 'Medium', esc(s.medium)) +
+      row('e.', 'Status', esc(s.status)) +
+      row('f.', 'Group', esc(FG[s.fg] || '-')) +
+      head('03', 'Visual') +
+      row('a.', 'Body', esc(V[s.body])) +
+      row('b.', 'Colour', s.color.map(function (c) { return '<button type="button" class="tag tagbtn" data-reveal="' + rgbText(c) + '" aria-label="' + rgbText(c) + '"><i class="sw" style="background:' + c + '"></i><span class="rv"></span></button>'; }).join('') || '-') +
+      row('c.', 'Family', s.fams.map(function (f) { return '<button type="button" class="tag tagbtn" data-reveal="' + f + ' ' + esc(FAM[f].name) + '" aria-label="' + esc(FAM[f].name) + '">' + fsw(f) + '<span class="rv"></span></button>'; }).join('') || '-') +
+      row('d.', 'Features', esc(s.feat)) +
+      head('04', 'History') +
+      row('a.', 'Primary', tag(s.primary)) +
+      row('b.', 'Also', s.tags.slice(1).map(tag).join('') || '-') +
+      row('c.', 'Events', String(evs.length));
+
+    var left =
+      '<div class="pg l">' +
+        '<div class="lt"><span class="bn">' + pad(s.n) + '</span><span class="bs">FWF</span><span class="bd">[' + esc(s.year) + '] ' + esc(s.country) + '</span></div>' +
+        // 空位置:放自己的视觉图,文件放进 images 就自动盖住这块
+        '<div class="vz"><span class="cap">Visual<br>' + esc(s.vis) + '</span>' +
+          '<img src="' + esc(s.vis) + '" alt="' + esc(s.name) + ' visual" onerror="this.remove()"></div>' +
+        '<div class="lb"><div><span class="k">Body</span><span class="v">' + esc(V[s.body]) + '</span></div></div>' +
+      '</div>';
+
+    var right =
+      '<div class="pg r">' +
+        '<div class="rh"><span class="n">01</span><span class="b">[' + esc(s.food) + ']</span><span class="nm">' + esc(s.name) + '</span></div>' +
+        '<div class="rb"><div class="rows">' + rows + '</div>' +
+          '<div class="side"><div class="code">' + s.id.replace('-', '') + ' ' + esc(s.year) + '</div>' +
+            '<div class="pt">' + IMG(s) + '</div>' +
+            '<div class="pband" style="background:' + stripes(s.color) + '"></div></div></div>' +
+        head('05', 'Summary') +
+        '<div class="nt"><p>' + esc(s.sum) + '</p>' + barcode(s.id + s.year + s.country) + '</div>' +
+      '</div>';
+
+    var tabs =
+      '<div class="tabs" role="navigation" aria-label="Specimen navigation">' +
+        (prev ? '<a class="tab" href="#' + prev.hash + '">&larr; Prev</a>' : '') +
+        (next ? '<a class="tab" href="#' + next.hash + '">Next &rarr;</a>' : '') +
+        '<a class="tab" href="#index">Index</a><a class="tab" href="#chronicle">Chron</a></div>';
+
+    view.innerHTML =
+      '<h1 class="vh"><span>' + s.id + '</span><span>SPECIMEN</span><span class="r">#' + pad(s.n) + '</span></h1>' +
+      '<div class="bw"><div class="book">' + left +
+        '<div class="spine">' +
+          '<svg class="clip" viewBox="0 0 28 84" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M11 68V20a8 8 0 0 1 16 0v46a13 13 0 0 1-26 0V28"/></svg></div>' +
+        right + '</div>' +
+        tabs + '<div class="pno" aria-hidden="true">P' + pad(s.n) + '</div></div>' +
+
+      '<div class="sec"><h2>Events</h2>' + (evs.map(function (e) {
+        return '<div class="ev"><span>' + e.y + '</span><span><span class="tag" title="' + esc(H[e.h].name) + '">' + sym(e.h) + e.h + '</span></span><span class="t">' + esc(e.t) + '</span></div>';
+      }).join('') || '<div class="ev"><span>-</span></div>') + '</div>' +
+
+      '<div class="sec"><h2>Sources</h2><ul class="srcs">' + (s.src.map(function (x) {
+        return '<li><a href="' + esc(x[1]) + '" target="_blank" rel="noopener noreferrer">' + esc(x[0]) + '</a></li>';
+      }).join('') || '<li class="none">-</li>') + '</ul></div>';      // 来源先空着:区块保留,显示一个横线
+  }
+
+
+  /* ================================================================
+     7. 路由
+     不用多个 html,靠网址里的 # 切换页面:
+       #index  #chronicle  #system  #fwf-001(某个角色)
+     ================================================================ */
+  function route() {
+    pan = null;
+    if (!S.length) {
+      view.innerHTML = '<h1 class="vh"><span>NO DATA</span></h1>';
+      return;
+    }
+    var h = (location.hash || '#index').slice(1);
+    var s = byHash(h);
+    if (!s && ['index', 'chronicle', 'system'].indexOf(h) < 0) h = 'index';
+    var current = s ? 'index' : h;      // 在角色页时,导航高亮 Index
+
+    document.querySelectorAll('nav a').forEach(function (a) {
+      if (a.getAttribute('data-nav') === current) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+
+    if (document.body) document.body.classList.toggle('home', !s && h === 'index');
+    if (document.body) document.body.classList.toggle('full', !s && h === 'chronicle');   // 年表页:整页不滚动,只拖画布
+    if (s) renderSpec(s);
+    else if (h === 'chronicle') renderChron();
+    else if (h === 'system') renderSystem();
+    else renderIndex();
+  }
+
+  // 点筛选按钮
+  view.addEventListener('click', function (e) {
+    var rv = e.target.closest && e.target.closest('button[data-reveal]');
+    if (rv) {                                                            // 角色页:点色块,旁边出现文字;再点收起
+      var sp = rv.querySelector('.rv');
+      sp.textContent = sp.textContent ? '' : rv.getAttribute('data-reveal');
+      return;
+    }
+    var b = e.target.closest && e.target.closest('button[data-f]');
+    if (!b) return;
+    var f = b.getAttribute('data-f'), k = b.getAttribute('data-k');
+    if (f === 'o') order = k;                      // 排列方式:点哪个用哪个
+    else filt[f] = (filt[f] === k) ? null : k;     // 筛选:再点一次取消
+    renderIndex();
+  });
+
+  window.addEventListener('resize', function () { if (pan) pan.fit(); });
+  window.addEventListener('hashchange', function () { route(); window.scrollTo(0, 0); });
+
+  /* ================================================================
+     8. 启动
+     ================================================================ */
+  // 深色 / 浅色切换
+  (function () {
+    var btn = document.getElementById('theme'), root = document.documentElement;
+    var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    function cur() { return root.getAttribute('data-theme') || (mq && mq.matches ? 'dark' : 'light'); }
+    function label() { btn.textContent = cur() === 'dark' ? 'Light' : 'Dark'; }   // 按钮写的是点了会变成什么
+    btn.addEventListener('click', function () {
+      var next = cur() === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('fwf-theme', next); } catch (e) {}
+      label();
+    });
+    label();
+  })();
+
+  setData(DATA_S, DATA_E);
+  var count = S.length + ' / ' + TOTAL;
+  document.getElementById('hcount').textContent = 'Archive ' + count;
+  document.getElementById('fcount').textContent = 'Archive (' + count + ')';
+  route();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+﻿list,code,name
+food_group,F01,Fruit
+food_group,F02,Vegetable
+food_group,F03,"Nut, Seed & Spice"
+food_group,F04,Bread & Dough
+food_group,F05,Sweets & Candy
+food_group,F06,"Cakes, Cookies & Pastry"
+food_group,F07,"Rice, Noodles & Dishes"
+food_group,F08,Fast Food
+food_group,F09,"Meat, Seafood & Egg"
+body,food-body,Food as Body
+body,food-head,Food as Head
+body,pack-body,Packaging as Body
+body,mat-body,Food Material as Body
+primary / tag,H01,Origin & Creation
+primary / tag,H02,Identity & Representation
+primary / tag,H03,Cultural Circulation
+primary / tag,H04,Controversy & Public Response
+primary / tag,H05,Redesign & Transformation
+primary / tag,H06,Disappearance & Revival
+country,US,United States
+country,JP,Japan
+country,UK,United Kingdom
+country,KR,South Korea
+image_folder,images,Character image on the specimen page: images/fwf-NNN.jpg
+image_folder,images/vis-NNN.png,Your own visual on the left page
+image_folder,images2,"Event images in Chronicle: images2/fwf-NNN-SS.jpg (SS = event order, earliest first)"
+colour_family,C01,Red
+colour_family,C02,Orange
+colour_family,C03,Yellow
+colour_family,C04,Green
+colour_family,C05,Blue
+colour_family,C06,Purple
+colour_family,C07,Pink
+colour_family,C08,Brown
+colour_family,C09,Grey
+colour_family,C10,Black
+colour_family,C11,White
+status,In use,In use
+status,Retired,Retired
+status,Discontinued,Discontinued
+status,Revived,Revived
+status,-,-
+event_image_file,images2/fwf-001-01.jpg,folder images2; fwf-<character no.>-<event no. by year>.jpg (or .png)
+character_image_file,images/fwf-001.jpg,folder images; fwf-<character no.>.jpg
